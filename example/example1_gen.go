@@ -22,7 +22,7 @@ const(
 func UserGet( db *sqlx.DB, key userField, value string) (User, error) {
 	var result User
 	statement := fmt.Sprintf("SELECT * from %s.%s where %s=?", "testdb", userTableName, key)
-	return db.Unsafe().Get(&result,statement,value)
+	return result, db.Unsafe().Get(&result,statement,value)
 }
 
 func UserSave(db *sqlx.DB, in User) error {
@@ -44,5 +44,4 @@ func UserNew(db *sqlx.DB, in User) error {
 	_, err := db.Exec(statement,
 		in.Name,in.Email,in.UserName,in.Password)
 	return err
-}
 }

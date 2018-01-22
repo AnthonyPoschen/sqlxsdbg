@@ -1,4 +1,4 @@
-//go:generate sqldbg -t=User $GOFILE
+//go:generate sqlxsdbg -t=User $GOFILE
 
 package example
 

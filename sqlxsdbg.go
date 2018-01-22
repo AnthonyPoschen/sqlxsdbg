@@ -193,7 +193,7 @@ func getFunc() (result string) {
 	result += fmt.Sprintf("func %sGet( db *sqlx.DB, key %s, value string) (%s, error) {\n", info.StructName, fieldStruct, info.StructName)
 	result += "	var result " + info.StructName + "\n"
 	result += `	statement := fmt.Sprintf("SELECT * from %s.%s where %s=?", "` + info.DatabaseName + `", ` + tableName + `, key)
-	return db.Unsafe().Get(&result,statement,value)
+	return result, db.Unsafe().Get(&result,statement,value)
 }`
 	return
 
