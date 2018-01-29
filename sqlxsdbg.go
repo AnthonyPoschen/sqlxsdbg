@@ -136,11 +136,12 @@ func main() {
 	//ast.Fprint(os.Stdout, token.NewFileSet(), Ast, nil)
 
 	funcMap := template.FuncMap{
-		"constants": buildConstants,
-		"lowerCase": lowerCaseFirst,
-		"getFunc":   getFunc,
-		"saveFunc":  saveFunc,
-		"newFunc":   newFunc,
+		"constants":    buildConstants,
+		"lowerCase":    lowerCaseFirst,
+		"getFunc":      getFunc,
+		"getMultiFunc": getMultiFunc,
+		"saveFunc":     saveFunc,
+		"newFunc":      newFunc,
 	}
 
 	tmpl, err := template.New("test").Funcs(funcMap).Parse(templateText)
@@ -167,6 +168,8 @@ func lowerCaseFirst(s string) string {
 
 func buildConstants() (result string) {
 	structName := lowerCaseFirst(info.StructName)
+	result += "\t" + info.StructName + "SearchTypeLIKE " + structName + "SearchType = \"LIKE\"\n"
+	result += "\t" + info.StructName + "SearchTypeEQUAL " + structName + "SearchType = \"=\"\n"
 	result += "\t" + structName + "TableName string = \"" + info.TableName + "\"\n\n"
 	for k, v := range info.Fields {
 		cleanRawTags := v.Tag[1 : len(v.Tag)-1]
@@ -197,6 +200,18 @@ func getFunc() (result string) {
 }`
 	return
 
+}
+
+func getMultiFunc() (result string) {
+	fieldStruct := lowerCaseFirst(info.StructName) + "Field"
+	searchSruct := lowerCaseFirst(info.StructName) + "SearchType"
+	tableName := lowerCaseFirst(info.StructName) + "TableName"
+	result += fmt.Sprintf("func %sGetMulti( db *sqlx.DB, key %s,searchType %s, value string) ([]%s,error){\n", info.StructName, fieldStruct, searchSruct, info.StructName)
+	result += "	var result []" + info.StructName + "\n"
+	result += `	statement := fmt.Sprintf("SELECT * from %s.%s where %s %s ?","` + info.DatabaseName + `",` + tableName + `,key,searchType)
+	return result, db.Unsafe().Select(&result,statement,value)
+}`
+	return
 }
 
 func saveFunc() (result string) {
@@ -312,12 +327,15 @@ import (
 )
 
 type {{lowerCase .StructName}}Field string
+type {{lowerCase .StructName}}SearchType string
 
 const(
 {{constants}}
 )
 
 {{getFunc}}
+
+{{getMultiFunc}}
 
 {{saveFunc}}
 

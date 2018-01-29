@@ -8,8 +8,11 @@ import (
 )
 
 type userField string
+type userSearchType string
 
 const(
+	UserSearchTypeLIKE userSearchType = "LIKE"
+	UserSearchTypeEQUAL userSearchType = "="
 	userTableName string = "_user"
 
 	UserFieldID userField = "id"
@@ -23,6 +26,12 @@ func UserGet( db *sqlx.DB, key userField, value string) (User, error) {
 	var result User
 	statement := fmt.Sprintf("SELECT * from %s.%s where %s=?", "testdb", userTableName, key)
 	return result, db.Unsafe().Get(&result,statement,value)
+}
+
+func UserGetMulti( db *sqlx.DB, key userField,searchType userSearchType, value string) ([]User,error){
+	var result []User
+	statement := fmt.Sprintf("SELECT * from %s.%s where %s %s ?","testdb",userTableName,key,searchType)
+	return result, db.Unsafe().Select(&result,statement,value)
 }
 
 func UserSave(db *sqlx.DB, in User) error {
@@ -43,5 +52,8 @@ func UserNew(db *sqlx.DB, in User) error {
 		UserFieldName,UserFieldEmail,UserFieldUserName,UserFieldPassword)
 	_, err := db.Exec(statement,
 		in.Name,in.Email,in.UserName,in.Password)
+	return err
+}
+Email, in.UserName, in.Password)
 	return err
 }
