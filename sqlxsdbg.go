@@ -40,34 +40,15 @@ type field struct {
 	IsPointer bool
 }
 
-type visitor struct {
+type targetFinder struct {
 	TargetName string
 }
 
-func (v visitor) Visit(n ast.Node) ast.Visitor {
+func (v targetFinder) Visit(n ast.Node) ast.Visitor {
 	if n == nil {
 		return nil
 	}
-	//spew.Dump("%#T", n)
-	//return v
-
 	switch d := n.(type) {
-	case *ast.Comment:
-		//spew.Dump(n)
-		databaseKeyword := "databaseName:\""
-		if strings.Contains(d.Text, databaseKeyword) {
-			loc := strings.Index(d.Text, databaseKeyword)
-			resarray := strings.Split(d.Text[loc+len(databaseKeyword):], "\"")
-			info.DatabaseName = resarray[0]
-			//fmt.Printf("%s\n", info.DatabaseName)
-		}
-		tableKeyword := "tableName:\""
-		if strings.Contains(d.Text, tableKeyword) {
-			loc := strings.Index(d.Text, tableKeyword)
-			resarray := strings.Split(d.Text[loc+len(tableKeyword):], "\"")
-			info.TableName = resarray[0]
-			//fmt.Printf("%s\n", info.TableName)
-		}
 	case *ast.TypeSpec:
 		if d.Name.Name == v.TargetName {
 			target = d
@@ -79,20 +60,15 @@ func (v visitor) Visit(n ast.Node) ast.Visitor {
 
 }
 
-type walker int
+type targetStructWalker int
 
-func (w walker) Visit(n ast.Node) ast.Visitor {
-	//spew.Dump(n)
+func (w targetStructWalker) Visit(n ast.Node) ast.Visitor {
 	switch d := n.(type) {
 	case *ast.Field:
-
-		//spew.Dump(d.Type.(*ast.Ident))
-		//typeName := ""
 		switch b := d.Type.(type) {
 
 		case *ast.Ident:
 			obj := b
-			//fmt.Printf("Name:%v Type:%v Tag:%v\n", d.Names[0], obj.Name, d.Tag.Value)
 			info.Fields = append(info.Fields, field{Name: d.Names[0].Name, Type: obj.Name, Tag: d.Tag.Value})
 		case *ast.StarExpr:
 			obj := b.X.(*ast.Ident)
@@ -106,34 +82,46 @@ func (w walker) Visit(n ast.Node) ast.Visitor {
 }
 
 // Main entry
-
 func main() {
 	targetObject := flag.String("t", "", "Set the name of the struct to be parsed")
+	dbName := flag.String("db", "", "Database Name for sqlx")
+	tbName := flag.String("tb", "", "Table Name within the database to associate target struct with")
+	help := flag.Bool("h", false, "Shows this Help Dialogue")
 	flag.Parse()
-	if *targetObject == "" {
-		log.Fatal("Please specify target struct with -t=")
+	if *help {
+		flag.Usage()
+		return
 	}
+
+	if *targetObject == "" {
+		log.Fatal("Target struct missing '-t=VALUE', use -h for help")
+	}
+
+	if *dbName == "" {
+		log.Fatal("Database Name missing '-db=VALUE', use -h for help")
+	}
+
+	if *tbName == "" {
+		log.Fatal("Table Name missing '-tb=VALUE', use -h for help")
+	}
+	info.DatabaseName = *dbName
+	info.TableName = *tbName
 	filename := os.Args[len(os.Args)-1]
-	//wddir, _ := os.Getwd()
 	outputfilename := filename[0:len(filename)-3] + "_gen.go"
-	//fmt.Println("PWD:", wddir, "- File:", filename, "- Output File:", outputfilename)
 	Ast, err := parser.ParseFile(token.NewFileSet(), filename, nil, parser.AllErrors|parser.ParseComments)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	info.PackageName = Ast.Name.Name
-	v := visitor{TargetName: *targetObject}
-	//var v visitor
-	ast.Walk(v, Ast)
+	tf := targetFinder{TargetName: *targetObject}
+	ast.Walk(tf, Ast)
 	if target == nil {
 		log.Fatal("Unable to find target")
 	}
 	info.StructName = target.Name.Name
-	var w walker
-	//fmt.Printf("\n\n\n\n")
-	ast.Walk(w, target)
-	//ast.Fprint(os.Stdout, token.NewFileSet(), Ast, nil)
+	var tsw targetStructWalker
+	ast.Walk(tsw, target)
 
 	funcMap := template.FuncMap{
 		"constants":    buildConstants,
@@ -189,10 +177,8 @@ func buildConstants() (result string) {
 }
 
 func getFunc() (result string) {
-	//v := strings.ToLower(string(info.StructName[0]))
 	fieldStruct := lowerCaseFirst(info.StructName) + "Field"
 	tableName := lowerCaseFirst(info.StructName) + "TableName"
-	//result += fmt.Sprintf("func(%s *%s) get ( db *sqlx.DB, key %s, value string) error {return nil;}\n", v, info.StructName, fieldStruct)
 	result += fmt.Sprintf("func %sGet( db *sqlx.DB, key %s, value string) (%s, error) {\n", info.StructName, fieldStruct, info.StructName)
 	result += "	var result " + info.StructName + "\n"
 	result += `	statement := fmt.Sprintf("SELECT * from %s.%s where %s=?", "` + info.DatabaseName + `", ` + tableName + `, key)

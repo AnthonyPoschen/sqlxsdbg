@@ -1,4 +1,4 @@
-//go:generate sqlxsdbg -t=User $GOFILE
+//go:generate sqlxsdbg -t=User -db=testdb -tb=_user $GOFILE
 
 package example
 
@@ -6,9 +6,6 @@ package example
 	User is a interface struct between the database,
 	the generator looks for the below keywords somewhere in the document to help identify
 	meta information needed to generate automatice db entries.
-
-	databaseName:"testdb"
-	tableName:"_user"
 */
 type User struct {
 	// ID Comment Block
