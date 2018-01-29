@@ -2,11 +2,7 @@
 
 package example
 
-/*
-	User is a interface struct between the database,
-	the generator looks for the below keywords somewhere in the document to help identify
-	meta information needed to generate automatice db entries.
-*/
+// User is a database representation of the table _user in the database testdb
 type User struct {
 	// ID Comment Block
 	// key says it should be used as a conditional on save
