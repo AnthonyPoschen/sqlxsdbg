@@ -57,7 +57,6 @@ func (v targetFinder) Visit(n ast.Node) ast.Visitor {
 	default:
 	}
 	return v
-
 }
 
 type targetStructWalker int
@@ -66,7 +65,6 @@ func (w targetStructWalker) Visit(n ast.Node) ast.Visitor {
 	switch d := n.(type) {
 	case *ast.Field:
 		switch b := d.Type.(type) {
-
 		case *ast.Ident:
 			obj := b
 			info.Fields = append(info.Fields, field{Name: d.Names[0].Name, Type: obj.Name, Tag: d.Tag.Value})
@@ -110,26 +108,27 @@ func main() {
 	outputfilename := filename[0:len(filename)-3] + "_gen.go"
 	Ast, err := parser.ParseFile(token.NewFileSet(), filename, nil, parser.AllErrors|parser.ParseComments)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("Unable to parse file:", err)
 	}
 
 	info.PackageName = Ast.Name.Name
 	tf := targetFinder{TargetName: *targetObject}
 	ast.Walk(tf, Ast)
 	if target == nil {
-		log.Fatal("Unable to find target")
+		log.Fatal("Unable to find target in file")
 	}
 	info.StructName = target.Name.Name
 	var tsw targetStructWalker
 	ast.Walk(tsw, target)
 
 	funcMap := template.FuncMap{
-		"constants":    buildConstants,
-		"lowerCase":    lowerCaseFirst,
-		"getFunc":      getFunc,
-		"getMultiFunc": getMultiFunc,
-		"saveFunc":     saveFunc,
-		"newFunc":      newFunc,
+		"constants":     buildConstants,
+		"lowerCase":     lowerCaseFirst,
+		"getFunc":       getFunc,
+		"getMultiFunc":  getMultiFunc,
+		"saveFunc":      saveFunc,
+		"saveMultiFunc": saveMultiFunc,
+		"newFunc":       newFunc,
 	}
 
 	tmpl, err := template.New("test").Funcs(funcMap).Parse(templateText)
@@ -245,6 +244,14 @@ func saveFunc() (result string) {
 	return
 }
 
+func saveMultiFunc() (result string) {
+	result += fmt.Sprintf("func %sSaveMulti(db *sqlx.DB, in []%s) error {\n", info.StructName, info.StructName)
+	result += "	for _ , v := range in {\n"
+	result += fmt.Sprintf("		err := %sSave(db,v)\n", info.StructName)
+	result += "		if err != nil {\n\t\t\treturn err\n\t\t}\n\t}\n}"
+	return
+}
+
 func newFunc() (result string) {
 	// build func definition
 	result += fmt.Sprintf("func %sNew(db *sqlx.DB, in %s) error {\n", info.StructName, info.StructName)
@@ -324,6 +331,8 @@ const(
 {{getMultiFunc}}
 
 {{saveFunc}}
+
+{{saveMultiFunc}}
 
 {{newFunc}}
 `
