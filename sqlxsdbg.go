@@ -248,7 +248,7 @@ func saveMultiFunc() (result string) {
 	result += fmt.Sprintf("func %sSaveMulti(db *sqlx.DB, in []%s) error {\n", info.StructName, info.StructName)
 	result += "	for _ , v := range in {\n"
 	result += fmt.Sprintf("		err := %sSave(db,v)\n", info.StructName)
-	result += "		if err != nil {\n\t\t\treturn err\n\t\t}\n\t}\n}"
+	result += "		if err != nil {\n\t\t\treturn err\n\t\t}\n\t}\n\treturn nil\n}"
 	return
 }
 
