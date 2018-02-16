@@ -135,6 +135,8 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	// delete the file if it exists, we don't give a shit about an error here
+	_ = os.Remove(outputfilename)
 	//open file and pass that instead of stdout
 	file, err := os.OpenFile(outputfilename, os.O_CREATE|os.O_RDWR, 0666)
 	if err != nil {
