@@ -1,4 +1,5 @@
 package example
+
 //This Code is generated DO NOT EDIT
 
 import (
@@ -46,13 +47,11 @@ func UserSave(db *sqlx.DB, in User) error {
 	return err
 }
 
-func UserSaveMulti(db *sqlx.DB, in []User) error {
+func UserSaveMulti(db *sqlx.DB, in []User) (errList []error) {
 	for _ , v := range in {
-		err := UserSave(db,v)
-		if err != nil {
-			return err
-		}
-	}
+		errList = append(errList,UserSave(db,v))
+		 }
+	return
 }
 
 func UserNew(db *sqlx.DB, in User) error {
@@ -62,4 +61,26 @@ func UserNew(db *sqlx.DB, in User) error {
 	_, err := db.Exec(statement,
 		in.Name,in.Email,in.UserName,in.Password)
 	return err
+}
+
+func UserNewMulti(db *sqlx.DB, in []User) (errList []error) {
+	for _ , v := range in {
+		errList = append(errList,UserNew(db,v))
+		}
+	return
+}
+
+func UserDelete(db *sqlx.DB, in User) error {
+	statement := fmt.Sprintf("DELETE FROM %s.%s WHERE ?=?","testdb",userTableName)
+	_,err := db.Exec(statement,
+		UserFieldID, in.ID,
+	)
+	return err
+}
+
+func UserDeleteMulti(db *sqlx.DB, in []User) (errList []error) {
+	for _ , v := range in {
+		errList = append(errList,UserDelete(db,v))
+	}
+	return
 }

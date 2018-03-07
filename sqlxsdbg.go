@@ -122,13 +122,16 @@ func main() {
 	ast.Walk(tsw, target)
 
 	funcMap := template.FuncMap{
-		"constants":     buildConstants,
-		"lowerCase":     lowerCaseFirst,
-		"getFunc":       getFunc,
-		"getMultiFunc":  getMultiFunc,
-		"saveFunc":      saveFunc,
-		"saveMultiFunc": saveMultiFunc,
-		"newFunc":       newFunc,
+		"constants":       buildConstants,
+		"lowerCase":       lowerCaseFirst,
+		"getFunc":         getFunc,
+		"getMultiFunc":    getMultiFunc,
+		"saveFunc":        saveFunc,
+		"saveMultiFunc":   saveMultiFunc,
+		"newFunc":         newFunc,
+		"newMultiFunc":    newMultiFunc,
+		"deleteFunc":      deleteFunc,
+		"deleteMultiFunc": deleteMultiFunc,
 	}
 
 	tmpl, err := template.New("test").Funcs(funcMap).Parse(templateText)
@@ -247,10 +250,10 @@ func saveFunc() (result string) {
 }
 
 func saveMultiFunc() (result string) {
-	result += fmt.Sprintf("func %sSaveMulti(db *sqlx.DB, in []%s) error {\n", info.StructName, info.StructName)
+	result += fmt.Sprintf("func %sSaveMulti(db *sqlx.DB, in []%s) (errList []error) {\n", info.StructName, info.StructName)
 	result += "	for _ , v := range in {\n"
-	result += fmt.Sprintf("		err := %sSave(db,v)\n", info.StructName)
-	result += "		if err != nil {\n\t\t\treturn err\n\t\t}\n\t}\n\treturn nil\n}"
+	result += fmt.Sprintf("		errList = append(errList,%sSave(db,v))\n", info.StructName)
+	result += "		 }\n\treturn\n}"
 	return
 }
 
@@ -312,7 +315,55 @@ func newFunc() (result string) {
 	return
 }
 
+func newMultiFunc() (result string) {
+	result += fmt.Sprintf("func %sNewMulti(db *sqlx.DB, in []%s) (errList []error) {\n", info.StructName, info.StructName)
+	result += "	for _ , v := range in {\n"
+	result += fmt.Sprintf("		errList = append(errList,%sNew(db,v))\n", info.StructName)
+	result += "		}\n\treturn\n}"
+	return
+}
+
+func deleteFunc() (result string) {
+	var keyPairs []string
+	constKey := info.StructName + "Field"
+	tableName := lowerCaseFirst(info.StructName) + "TableName"
+	for _, v := range info.Fields {
+		cleanTag := v.Tag[1 : len(v.Tag)-1]
+		tag := reflect.StructTag(cleanTag)
+
+		if _, ok := tag.Lookup("key"); ok {
+			keyPairs = append(keyPairs, constKey+v.Name+", "+"in."+v.Name)
+			continue
+		}
+	}
+	result += fmt.Sprintf("func %sDelete(db *sqlx.DB, in %s) error {\n", info.StructName, info.StructName)
+	result += "\tstatement := fmt.Sprintf(\"DELETE FROM %s.%s WHERE"
+	for k := range keyPairs {
+		if k != 0 {
+			result += " AND"
+		}
+		result += " ?=?"
+	}
+	result += "\",\"" + info.DatabaseName + "\"," + tableName + ")\n"
+	result += "\t_,err := db.Exec(statement,\n"
+	for _, v := range keyPairs {
+		result += "\t\t" + v + ",\n"
+	}
+	result += "\t)\n"
+	result += "\treturn err\n}"
+	return
+}
+
+func deleteMultiFunc() (result string) {
+	result += fmt.Sprintf("func %sDeleteMulti(db *sqlx.DB, in []%s) (errList []error) {\n", info.StructName, info.StructName)
+	result += "	for _ , v := range in {\n"
+	result += fmt.Sprintf("		errList = append(errList,%sDelete(db,v))\n", info.StructName)
+	result += "	}\n\treturn\n}"
+	return
+}
+
 const templateText = `package {{.PackageName}}
+
 //This Code is generated DO NOT EDIT
 
 import (
@@ -337,4 +388,10 @@ const(
 {{saveMultiFunc}}
 
 {{newFunc}}
+
+{{newMultiFunc}}
+
+{{deleteFunc}}
+
+{{deleteMultiFunc}}
 `
