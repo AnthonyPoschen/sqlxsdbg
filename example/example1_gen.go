@@ -14,6 +14,8 @@ type userSearchType string
 const(
 	UserSearchTypeLIKE userSearchType = "LIKE"
 	UserSearchTypeEQUAL userSearchType = "="
+	UserSearchTypeLESSTHAN userSearchType = "<"
+	UserSearchTypeGREATERTHAN userSearchType = ">"
 	userTableName string = "_user"
 
 	UserFieldID userField = "id"
@@ -33,6 +35,12 @@ func UserGetMulti( db *sqlx.DB, key userField,searchType userSearchType, value s
 	var result []User
 	statement := fmt.Sprintf("SELECT * from %s.%s where %s %s ?","testdb",userTableName,key,searchType)
 	return result, db.Unsafe().Select(&result,statement,value)
+}
+
+func UserGetAll(db *sqlx.DB) ([]User,error){
+	var result []User
+	statement := fmt.Sprintf("SELECT * from %s.%s","testdb",userTableName)
+	return result,db.Unsafe().Select(&result,statement)
 }
 
 func UserSave(db *sqlx.DB, in User) error {

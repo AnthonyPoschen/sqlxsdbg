@@ -126,6 +126,7 @@ func main() {
 		"lowerCase":       lowerCaseFirst,
 		"getFunc":         getFunc,
 		"getMultiFunc":    getMultiFunc,
+		"getAllFunc":      getAllFunc,
 		"saveFunc":        saveFunc,
 		"saveMultiFunc":   saveMultiFunc,
 		"newFunc":         newFunc,
@@ -162,6 +163,8 @@ func buildConstants() (result string) {
 	structName := lowerCaseFirst(info.StructName)
 	result += "\t" + info.StructName + "SearchTypeLIKE " + structName + "SearchType = \"LIKE\"\n"
 	result += "\t" + info.StructName + "SearchTypeEQUAL " + structName + "SearchType = \"=\"\n"
+	result += "\t" + info.StructName + "SearchTypeLESSTHAN " + structName + "SearchType = \"<\"\n"
+	result += "\t" + info.StructName + "SearchTypeGREATERTHAN " + structName + "SearchType = \">\"\n"
 	result += "\t" + structName + "TableName string = \"" + info.TableName + "\"\n\n"
 	for k, v := range info.Fields {
 		cleanRawTags := v.Tag[1 : len(v.Tag)-1]
@@ -200,6 +203,16 @@ func getMultiFunc() (result string) {
 	result += "	var result []" + info.StructName + "\n"
 	result += `	statement := fmt.Sprintf("SELECT * from %s.%s where %s %s ?","` + info.DatabaseName + `",` + tableName + `,key,searchType)
 	return result, db.Unsafe().Select(&result,statement,value)
+}`
+	return
+}
+
+func getAllFunc() (result string) {
+	tableName := lowerCaseFirst(info.StructName) + "TableName"
+	result += fmt.Sprintf("func %sGetAll(db *sqlx.DB) ([]%s,error){\n", info.StructName, info.StructName)
+	result += fmt.Sprintf("	var result []%s\n", info.StructName)
+	result += `	statement := fmt.Sprintf("SELECT * from %s.%s","` + info.DatabaseName + `",` + tableName + ")\n"
+	result += `	return result,db.Unsafe().Select(&result,statement)
 }`
 	return
 }
@@ -382,6 +395,8 @@ const(
 {{getFunc}}
 
 {{getMultiFunc}}
+
+{{getAllFunc}}
 
 {{saveFunc}}
 
