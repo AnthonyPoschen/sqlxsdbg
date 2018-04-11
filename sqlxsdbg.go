@@ -272,7 +272,7 @@ func saveMultiFunc() (result string) {
 
 func newFunc() (result string) {
 	// build func definition
-	result += fmt.Sprintf("func %sNew(db *sqlx.DB, in %s) error {\n", info.StructName, info.StructName)
+	result += fmt.Sprintf("func %sNew(db *sqlx.DB, in %s) (sql.Result,error) {\n", info.StructName, info.StructName)
 	result += "\tstatement := fmt.Sprintf(\"INSERT INTO %s.%s ("
 	tableName := lowerCaseFirst(info.StructName) + "TableName"
 	type pair struct {
@@ -316,14 +316,14 @@ func newFunc() (result string) {
 		}
 		result += info.StructName + "Field" + v.value
 	}
-	result += ")\n\t_, err := db.Exec(statement,\n\t\t"
+	result += ")\n\treturn db.Exec(statement,\n\t\t"
 	for k, v := range pairs {
 		if k != 0 {
 			result += ","
 		}
 		result += "in." + v.value
 	}
-	result += ")\n\treturn err"
+	result += ")"
 	result += "\n}"
 	return
 }
@@ -331,7 +331,8 @@ func newFunc() (result string) {
 func newMultiFunc() (result string) {
 	result += fmt.Sprintf("func %sNewMulti(db *sqlx.DB, in []%s) (errList []error) {\n", info.StructName, info.StructName)
 	result += "	for _ , v := range in {\n"
-	result += fmt.Sprintf("		errList = append(errList,%sNew(db,v))\n", info.StructName)
+	result += fmt.Sprintf("		_ , err := %sNew(db,v)\n", info.StructName)
+	result += "		errList = append(errList,err)\n"
 	result += "		}\n\treturn\n}"
 	return
 }
