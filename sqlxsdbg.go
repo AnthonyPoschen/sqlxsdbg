@@ -95,10 +95,6 @@ func main() {
 		log.Fatal("Target struct missing '-t=VALUE', use -h for help")
 	}
 
-	if *dbName == "" {
-		log.Fatal("Database Name missing '-db=VALUE', use -h for help")
-	}
-
 	if *tbName == "" {
 		log.Fatal("Table Name missing '-tb=VALUE', use -h for help")
 	}
@@ -188,8 +184,12 @@ func getFunc() (result string) {
 	tableName := lowerCaseFirst(info.StructName) + "TableName"
 	result += fmt.Sprintf("func %sGet( db *sqlx.DB, key %s, value string) (%s, error) {\n", info.StructName, fieldStruct, info.StructName)
 	result += "	var result " + info.StructName + "\n"
-	result += `	statement := fmt.Sprintf("SELECT * from %s.%s where %s=?", "` + info.DatabaseName + `", ` + tableName + `, key)
-	return result, db.Unsafe().Get(&result,statement,value)
+	if info.DatabaseName == "" {
+		result += `	statement := fmt.Sprintf("SELECT * from %s where %s=?", ` + tableName + `, key)` + "\n"
+	} else {
+		result += `	statement := fmt.Sprintf("SELECT * from %s.%s where %s=?", "` + info.DatabaseName + `", ` + tableName + `, key)` + "\n"
+	}
+	result += `return result, db.Unsafe().Get(&result,statement,value)
 }`
 	return
 
@@ -201,8 +201,12 @@ func getMultiFunc() (result string) {
 	tableName := lowerCaseFirst(info.StructName) + "TableName"
 	result += fmt.Sprintf("func %sGetMulti( db *sqlx.DB, key %s,searchType %s, value string) ([]%s,error){\n", info.StructName, fieldStruct, searchSruct, info.StructName)
 	result += "	var result []" + info.StructName + "\n"
-	result += `	statement := fmt.Sprintf("SELECT * from %s.%s where %s %s ?","` + info.DatabaseName + `",` + tableName + `,key,searchType)
-	return result, db.Unsafe().Select(&result,statement,value)
+	if info.DatabaseName == "" {
+		result += `	statement := fmt.Sprintf("SELECT * from %s where %s %s ?",` + tableName + `,key,searchType)` + "\n"
+	} else {
+		result += `	statement := fmt.Sprintf("SELECT * from %s.%s where %s %s ?","` + info.DatabaseName + `",` + tableName + `,key,searchType)` + "\n"
+	}
+	result += `return result, db.Unsafe().Select(&result,statement,value)
 }`
 	return
 }
@@ -211,7 +215,11 @@ func getAllFunc() (result string) {
 	tableName := lowerCaseFirst(info.StructName) + "TableName"
 	result += fmt.Sprintf("func %sGetAll(db *sqlx.DB) ([]%s,error){\n", info.StructName, info.StructName)
 	result += fmt.Sprintf("	var result []%s\n", info.StructName)
-	result += `	statement := fmt.Sprintf("SELECT * from %s.%s","` + info.DatabaseName + `",` + tableName + ")\n"
+	if info.DatabaseName == "" {
+		result += `	statement := fmt.Sprintf("SELECT * from %s",` + tableName + ")\n"
+	} else {
+		result += `	statement := fmt.Sprintf("SELECT * from %s.%s","` + info.DatabaseName + `",` + tableName + ")\n"
+	}
 	result += `	return result,db.Unsafe().Select(&result,statement)
 }`
 	return
@@ -238,7 +246,11 @@ func saveFunc() (result string) {
 		}
 	}
 	// build statement
-	result += "\tstatement := fmt.Sprintf(\"UPDATE %s.%s SET "
+	if info.DatabaseName == "" {
+		result += "\tstatement := fmt.Sprintf(\"UPDATE %s SET "
+	} else {
+		result += "\tstatement := fmt.Sprintf(\"UPDATE %s.%s SET "
+	}
 	for range execPairs {
 		result += "?=? "
 	}
@@ -249,7 +261,11 @@ func saveFunc() (result string) {
 		}
 		result += " ?=?"
 	}
-	result += "\", \"" + info.DatabaseName + "\", " + tableName + ")\n"
+	if info.DatabaseName == "" {
+		result += "\", " + tableName + ")\n"
+	} else {
+		result += "\", \"" + info.DatabaseName + "\", " + tableName + ")\n"
+	}
 	result += "\t_,err := db.Exec(statement,\n"
 	for _, v := range execPairs {
 		result += "\t\t" + v + ",\n"
@@ -273,7 +289,11 @@ func saveMultiFunc() (result string) {
 func newFunc() (result string) {
 	// build func definition
 	result += fmt.Sprintf("func %sNew(db *sqlx.DB, in %s) (sql.Result,error) {\n", info.StructName, info.StructName)
-	result += "\tstatement := fmt.Sprintf(\"INSERT INTO %s.%s ("
+	if info.DatabaseName == "" {
+		result += "\tstatement := fmt.Sprintf(\"INSERT INTO %s ("
+	} else {
+		result += "\tstatement := fmt.Sprintf(\"INSERT INTO %s.%s ("
+	}
 	tableName := lowerCaseFirst(info.StructName) + "TableName"
 	type pair struct {
 		key   string
@@ -309,7 +329,11 @@ func newFunc() (result string) {
 		}
 		result += "?"
 	}
-	result += ")\",\n\t\t\"" + info.DatabaseName + "\"," + tableName + ",\n\t\t"
+	if info.DatabaseName == "" {
+		result += ")\",\n\t\t" + tableName + ",\n\t\t"
+	} else {
+		result += ")\",\n\t\t\"" + info.DatabaseName + "\"," + tableName + ",\n\t\t"
+	}
 	for k, v := range pairs {
 		if k != 0 {
 			result += ","
@@ -351,14 +375,22 @@ func deleteFunc() (result string) {
 		}
 	}
 	result += fmt.Sprintf("func %sDelete(db *sqlx.DB, in %s) error {\n", info.StructName, info.StructName)
-	result += "\tstatement := fmt.Sprintf(\"DELETE FROM %s.%s WHERE"
+	if info.DatabaseName == "" {
+		result += "\tstatement := fmt.Sprintf(\"DELETE FROM %s WHERE"
+	} else {
+		result += "\tstatement := fmt.Sprintf(\"DELETE FROM %s.%s WHERE"
+	}
 	for k := range keyPairs {
 		if k != 0 {
 			result += " AND"
 		}
 		result += " ?=?"
 	}
-	result += "\",\"" + info.DatabaseName + "\"," + tableName + ")\n"
+	if info.DatabaseName == "" {
+		result += "\"," + tableName + ")\n"
+	} else {
+		result += "\",\"" + info.DatabaseName + "\"," + tableName + ")\n"
+	}
 	result += "\t_,err := db.Exec(statement,\n"
 	for _, v := range keyPairs {
 		result += "\t\t" + v + ",\n"
